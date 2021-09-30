@@ -27,7 +27,7 @@ app.get('', (req, res)=>{
     pool.getConnection((err, connection)=>{
         if (err) throw err
 
-        connection.query('SELECT * from list_petty_case', (err, rows)=>{
+        connection.query('SELECT * from total_cash', (err, rows)=>{
             connection.release()
 
             if(!err){
@@ -79,37 +79,55 @@ app.delete('/:id', (req, res)=>{
 
 // POST NEW PETTY
 app.post('/add', (req, res)=>{
-    let params = req.body
+    const params = req.body
+
     pool.getConnection((err, connection)=>{
         if (err) throw err
+
         // status documentation
         // income / expend
-
         connection.query('INSERT INTO list_petty_case SET ?', params, (err, rows)=>{
-            connection.release()
-            // if(!err){
-            //     res.send('Item has be added')
-            //     res.end()
-            // } else {
-            //     console.log(err)
-            // }
-        })
+            if (err) throw err
+        })  
+    })
 
-        let last_total = connection.query('SELECT nominal FROM total_cash WHERE id ?', [params.total_id], (err, rows)=>{
-            connection.release()
-        })
-    
-        if (params.status === 'expend' && params.total_id){
-            let total_expend = parseInt(last_total) - params.nominal
-    
-            connection.query('UPDATE total_cash SET nominal = ?, last_expend = ?, last_update = now() WHERE id = ?', [params.nominal, total_expend], (err, rows)=>{
+    pool.getConnection( async (err, connection)=>{
+        if (err) throw err
+
+        // for expend total cash
+        if (params.status == 'expend' && params.total_id !== undefined){
+            connection.query('UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
                 connection.release()
+                if(!err){
+                    res.send('Cash has be updated')
+                    res.end()
+                } else {
+                    console.log(err)
+                }
             })
-        } else if (params.status === 'income' && params.total_id){
-            let total_inacome = parseInt(last_total) + params.nominal
-    
-            connection.query('UPDATE total_cash SET nominal = ?, last_income = ?, last_update = now() WHERE id = ?', [params.nominal, total_inacome], (err, rows)=>{
+
+        // for income total cash
+        } else if (params.status === 'income' && params.total_id !== undefined){
+            connection.query('UPDATE total_cash SET nominal = nominal + ?, last_income = ?, last_update = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
                 connection.release()
+                if(!err){
+                    res.send('Cash has be updated')
+                    res.end()
+                } else {
+                    console.log(err)
+                }
+            })
+
+        // for create new total cash
+        } else if(params.total_id === undefined){
+            connection.query('INSERT INTO total_cash SET nominal = ?, last_income = ?, last_update = now()',[params.nominal, params.nominal], (err, rows)=>{
+                connection.release()
+                if(!err){
+                    res.send('Item has be added')
+                    res.end()
+                } else {
+                    console.log(err)
+                }
             })
         }
     })
