@@ -22,8 +22,8 @@ const pool = mysql.createPool({
 })
 
 // GET
-// get all item
-app.get('', (req, res)=>{
+// get item total cash
+app.get('/total-cash', (req, res)=>{
     pool.getConnection((err, connection)=>{
         if (err) throw err
 
@@ -31,6 +31,25 @@ app.get('', (req, res)=>{
             connection.release()
 
             if(!err){
+                // res.writeHead(200, {'content-type':"application/javascript"})
+                res.send(rows)
+            } else {
+                console.log(err)
+            }
+        })
+    })
+})
+
+// get all item petty cash
+app.get('/list-cash', (req, res)=>{
+    pool.getConnection((err, connection)=>{
+        if (err) throw err
+
+        connection.query('SELECT * from list_petty_case', (err, rows)=>{
+            connection.release()
+
+            if(!err){
+                // res.writeHead(200, {'content-type':"application/javascript"})
                 res.send(rows)
             } else {
                 console.log(err)
