@@ -49,7 +49,6 @@ app.get('/list-cash', (req, res)=>{
             connection.release()
 
             if(!err){
-                // res.writeHead(200, {'content-type':"application/javascript"})
                 res.send(rows)
             } else {
                 console.log(err)
