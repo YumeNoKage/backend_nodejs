@@ -2,11 +2,13 @@
 const express = require('express')
 const mysql = require('mysql')
 const body_parser = require('body-parser')
+var cors = require('cors')
 
 const app = express()
 const port = process.env.PORT || 4000
 
 // USE THIRD-PARTY MODULE
+app.use(cors())
 app.use(body_parser.urlencoded({extended: true}))
 app.use(body_parser.json())
 
