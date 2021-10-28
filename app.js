@@ -33,7 +33,7 @@ app.get('/total-cash', (req, res)=>{
 
             if(!err){
                 // res.writeHead(200, {'content-type':"application/javascript"})
-                res.send(rows)
+                res.send(rows[0])
             } else {
                 console.log(err)
             }
@@ -46,11 +46,29 @@ app.get('/list-cash', (req, res)=>{
     pool.getConnection((err, connection)=>{
         if (err) throw err
 
+        const page = parseInt(req.query.page)
+        const limit = parseInt(req.query.limit)
+        const starIndex = (page -1 ) * limit
+        const endIndex = page * limit
         connection.query('SELECT * from list_petty_case', (err, rows)=>{
             connection.release()
 
             if(!err){
-                res.send(rows)
+                const data = {
+                    paginations:{
+                        totalPage: Math.ceil(page / limit),
+                        currentPage: page,
+
+                        // search this problem 
+                        nextPage: rows.slice(((page + 1) - 1 * limit), (page + 1) * limit ),
+                        prevPage: rows.slice(((page - 1) - 1 * limit), (page - 1) * limit ),
+                    },
+                    data:{
+                        ...rows.slice(starIndex, endIndex)
+                    }
+                }
+                
+                res.send(data)
             } else {
                 console.log(err)
             }
