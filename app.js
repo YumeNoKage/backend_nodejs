@@ -54,14 +54,15 @@ app.get('/list-cash', (req, res)=>{
             connection.release()
 
             if(!err){
-                const data = {
-                    paginations:{
-                        totalPage: Math.ceil(page / limit),
-                        currentPage: page,
 
-                        // search this problem 
-                        nextPage: rows.slice(((page + 1) - 1 * limit), (page + 1) * limit ),
-                        prevPage: rows.slice(((page - 1) - 1 * limit), (page - 1) * limit ),
+                let totalPage = Math.ceil(rows.length / limit)
+                
+                const data = {
+                    pagination:{
+                        totalPage,
+                        currentPage: page,
+                        nextPage: page + 1 > totalPage ? null : page + 1,
+                        prevPage: page - 1 <= 0 ? null : page - 1,
                     },
                     data:{
                         ...rows.slice(starIndex, endIndex)
@@ -133,7 +134,7 @@ app.post('/add', (req, res)=>{
 
         // for expend total cash
         if (params.status == 'expend' && params.total_id !== undefined){
-            connection.query('UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
+            connection.query('UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now(), expend_update_at = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
                 connection.release()
                 if(!err){
                     res.send('Cash has be updated')
@@ -145,7 +146,7 @@ app.post('/add', (req, res)=>{
 
         // for income total cash
         } else if (params.status === 'income' && params.total_id !== undefined){
-            connection.query('UPDATE total_cash SET nominal = nominal + ?, last_income = ?, last_update = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
+            connection.query('UPDATE total_cash SET nominal = nominal + ?, last_income = ?, last_update = now(), income_update_at = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
                 connection.release()
                 if(!err){
                     res.send('Cash has be updated')
@@ -157,7 +158,7 @@ app.post('/add', (req, res)=>{
 
         // for create new total cash
         } else if(params.total_id === undefined){
-            connection.query('INSERT INTO total_cash SET nominal = ?, last_income = ?, last_update = now()',[params.nominal, params.nominal], (err, rows)=>{
+            connection.query('INSERT INTO total_cash SET nominal = ?, last_income = ?, last_update = now(), income_update_at = now()',[params.nominal, params.nominal], (err, rows)=>{
                 connection.release()
                 if(!err){
                     res.send('Item has be added')
