@@ -3,6 +3,7 @@ const express = require('express')
 const mysql = require('mysql')
 const body_parser = require('body-parser')
 var cors = require('cors')
+const { Console, log } = require('console')
 
 const app = express()
 const port = process.env.PORT || 4000
@@ -119,6 +120,7 @@ app.delete('/:id', (req, res)=>{
 app.post('/add', (req, res)=>{
     const params = req.body
 
+    // add new data to list history in table list_petty_case
     pool.getConnection((err, connection)=>{
         if (err) throw err
 
@@ -129,6 +131,7 @@ app.post('/add', (req, res)=>{
         })  
     })
 
+    // tabulasi data to table total_cash
     pool.getConnection( async (err, connection)=>{
         if (err) throw err
 
@@ -173,33 +176,81 @@ app.post('/add', (req, res)=>{
 
 
 // UPDATE / PUT
-app.put('/update/:id', (req, res)=>{
+
+const getNominal = (params) => {
+    // pool.query((err, connection) => {
+    return new Promise((resolve, reject) => {
+        let sql = `SELECT nominal FROM list_petty_case WHERE list_petty_case . id = ?`
+        pool.query(sql, params.params.id, (err, result) => {
+            // connection.release()
+
+            if (err) throw err
+            // console.log(nominal + ' inside');
+            return resolve(result[0].nominal)
+        })
+    })
+    // })
+}
+
+app.put('/update/:id', async (req, res)=>{
+
+    let oldNominal = await getNominal(req)
+
+    // update in history list_petty_cash
     pool.getConnection((err, connection)=>{
         if (err) throw err
     
         let {title, description, nominal, status} = req.body
-        let id = req.params.id
+        let id = parseInt(req.params.id)
         nominal = parseInt(nominal)
-        status = parseInt(status)
-        // let params = req.body
-        let sql = `UPDATE list_petty_case SET title = ?, description = ?, nominal = ?, status = ? WHERE list_petty_case . id = ?`
 
-        // status documentation
-        // 0 = inactive, 1 = active, 2 = draf, 3 = complate, 4 = uncompleted
+        let sql = `UPDATE list_petty_case SET title = ?, description = ?, nominal = ?, status = ? WHERE list_petty_case . id = ?`
+        
         connection.query(sql, [title, description, nominal, status, id], (err, rows)=>{
             connection.release()
-
-            // console.log(data)
-            if(!err){
-                res.send('Item has be updated')
-                res.end()
-            } else {
-                console.log(err)
-                res.end()
-            }
+            if (err) throw err
         })
     })
+
+    // update total cash
+    pool.getConnection((err, connection)=>{
+        if (err) throw err
+
+        let params = {...req.body, nominal: parseInt(req.body.nominal), total_id: parseInt(req.body.id_total)}
+
+        // for expend total cash
+        if (params.status == 'expend' && params.total_id !== undefined){
+            let newNominal =  params.nominal - oldNominal
+
+            let sql = `UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now(), expend_update_at = now() WHERE id = ?`
+            connection.query(sql, [newNominal, params.nominal, params.total_id], (err, rows)=>{
+                connection.release()
+                if(!err){
+                    res.send('Cash has be updated')
+                    res.end()
+                } else {
+                    console.log(err)
+                }
+            })
+
+        // for income total cash
+        } else if (params.status === 'income' && params.total_id !== undefined){
+            let newNominal = oldNominal - params.nominal
+
+            let sql = `UPDATE total_cash SET nominal = nominal - ?, last_income = ?, last_update = now(), income_update_at = now() WHERE id = ?`
+            connection.query(sql, [newNominal, params.nominal, params.total_id], (err, rows)=>{
+                connection.release()
+                if(!err){
+                    res.send('Cash has be updated')
+                    res.end()
+                } else {
+                    console.log(err)
+                }
+            })
+        } 
+    })
 })
+ 
 
 // UPDATE / PATCH
 app.patch('/update/:id', (req, res)=>{
