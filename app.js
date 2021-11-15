@@ -117,8 +117,65 @@ app.delete('/:id', (req, res)=>{
 
 
 // POST NEW PETTY
-app.post('/add', (req, res)=>{
+const getTotalCash = async function(){
+    return new Promise((resolve, reject) => {
+        let sql = `SELECT * from total_cash LIMIT 1`
+        pool.query(sql, (err, result) => {
+
+            if (err) throw err
+            return resolve(result[0].id)
+        })
+    })
+}
+
+app.post('/add', async (req, res)=>{
     const params = req.body
+
+    // tabulasi data to table total_cash
+    // for expend total cash
+    if (params.status == 'expend' && params.total_id !== undefined){
+        new Promise((resolve, reject) => {
+            pool.query('UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now(), expend_update_at = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
+                // connection.release()
+                if(!err){
+                    return resolve()
+                } else {
+                    console.log(err)
+                    return reject()
+                }
+            })
+        })
+
+    // for income total cash
+    } else if (params.status === 'income' && params.total_id !== undefined){
+        new Promise((resolve, reject) =>{
+            pool.query('UPDATE total_cash SET nominal = nominal + ?, last_income = ?, last_update = now(), income_update_at = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
+                // connection.release()
+                if(!err){
+                    return resolve()
+                } else {
+                    console.log(err)
+                    return reject()
+                }
+            })
+        })
+
+    // for create new total cash
+    } else if(params.total_id === undefined){
+        new Promise((resolve, reject) =>{
+            pool.query('INSERT INTO total_cash SET nominal = ?, last_income = ?, last_update = now(), income_update_at = now()',[params.nominal, params.nominal], (err, rows)=>{
+                // connection.release()
+                if(!err){
+                    return resolve()
+                } else {
+                    console.log(err)
+                    return reject()
+                }
+            })
+        })
+    }
+
+    const getIdTotalCash = await getTotalCash()
 
     // add new data to list history in table list_petty_case
     pool.getConnection((err, connection)=>{
@@ -126,70 +183,27 @@ app.post('/add', (req, res)=>{
 
         // status documentation
         // income / expend
-        connection.query('INSERT INTO list_petty_case SET ?', params, (err, rows)=>{
+        let data = {...params, total_id: getIdTotalCash}
+        connection.query('INSERT INTO list_petty_case SET ?', data, (err, rows)=>{
             if (err) throw err
-        })  
+
+            res.send('Cash has be updated')
+            res.end()
+        })
     })
 
-    // tabulasi data to table total_cash
-    pool.getConnection( async (err, connection)=>{
-        if (err) throw err
-
-        // for expend total cash
-        if (params.status == 'expend' && params.total_id !== undefined){
-            connection.query('UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now(), expend_update_at = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
-                connection.release()
-                if(!err){
-                    res.send('Cash has be updated')
-                    res.end()
-                } else {
-                    console.log(err)
-                }
-            })
-
-        // for income total cash
-        } else if (params.status === 'income' && params.total_id !== undefined){
-            connection.query('UPDATE total_cash SET nominal = nominal + ?, last_income = ?, last_update = now(), income_update_at = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
-                connection.release()
-                if(!err){
-                    res.send('Cash has be updated')
-                    res.end()
-                } else {
-                    console.log(err)
-                }
-            })
-
-        // for create new total cash
-        } else if(params.total_id === undefined){
-            connection.query('INSERT INTO total_cash SET nominal = ?, last_income = ?, last_update = now(), income_update_at = now()',[params.nominal, params.nominal], (err, rows)=>{
-                connection.release()
-                if(!err){
-                    res.send('Item has be added')
-                    res.end()
-                } else {
-                    console.log(err)
-                }
-            })
-        }
-    })
 })
 
 
 // UPDATE / PUT
-
 const getNominal = (params) => {
-    // pool.query((err, connection) => {
     return new Promise((resolve, reject) => {
         let sql = `SELECT nominal FROM list_petty_case WHERE list_petty_case . id = ?`
         pool.query(sql, params.params.id, (err, result) => {
-            // connection.release()
-
             if (err) throw err
-            // console.log(nominal + ' inside');
             return resolve(result[0].nominal)
         })
     })
-    // })
 }
 
 app.put('/update/:id', async (req, res)=>{
