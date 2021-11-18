@@ -3,7 +3,6 @@ const express = require('express')
 const mysql = require('mysql')
 const body_parser = require('body-parser')
 var cors = require('cors')
-const { Console, log } = require('console')
 
 const app = express()
 const port = process.env.PORT || 4000
@@ -117,27 +116,66 @@ app.delete('/:id', (req, res)=>{
 
 
 // POST NEW PETTY
-const getTotalCash = async function(){
+let idTotalCash 
+const getTotalCash = function(){
     return new Promise((resolve, reject) => {
         let sql = `SELECT * from total_cash LIMIT 1`
         pool.query(sql, (err, result) => {
 
             if (err) throw err
-            return resolve(result[0].id)
+            idTotalCash = result[0].id
         })
     })
 }
 
-app.post('/add', async (req, res)=>{
+// add new data to list history in table list_petty_case
+const updateListPetty = function (params){
+    return new Promise((resolve, reject) =>{
+        let data = {...params, total_id: idTotalCash}
+        
+        pool.query('INSERT INTO list_petty_case SET ?', data, (err, rows)=>{
+            if (err) throw err
+
+            // res.send('Cash has be updated')
+            // res.end()
+            return resolve()
+        })
+    })
+}
+
+app.post('/add',(req, res)=>{
     const params = req.body
 
     // tabulasi data to table total_cash
+    // for create new total cash
+    if(!params.total_id){
+        new Promise((resolve, reject) =>{
+            pool.query('INSERT INTO total_cash SET nominal = ?, last_income = ?, last_update = now(), income_update_at = now()',[params.nominal, params.nominal], (err, rows)=>{
+                // connection.release()
+                if(!err){
+                    getTotalCash()
+                    updateListPetty(params)
+                    res.send('Cash has be updated')
+                    res.end()
+                    return resolve()
+                } else {
+                    console.log(err)
+                    return reject()
+                }
+            })
+        })
+    }
+
     // for expend total cash
     if (params.status == 'expend' && params.total_id !== undefined){
         new Promise((resolve, reject) => {
             pool.query('UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now(), expend_update_at = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
                 // connection.release()
                 if(!err){
+                    // getTotalCash()
+                    updateListPetty(params)
+                    res.send('Cash has be updated')
+                    res.end()
                     return resolve()
                 } else {
                     console.log(err)
@@ -152,20 +190,10 @@ app.post('/add', async (req, res)=>{
             pool.query('UPDATE total_cash SET nominal = nominal + ?, last_income = ?, last_update = now(), income_update_at = now() WHERE id = ?', [params.nominal, params.nominal, params.total_id], (err, rows)=>{
                 // connection.release()
                 if(!err){
-                    return resolve()
-                } else {
-                    console.log(err)
-                    return reject()
-                }
-            })
-        })
-
-    // for create new total cash
-    } else if(params.total_id === undefined){
-        new Promise((resolve, reject) =>{
-            pool.query('INSERT INTO total_cash SET nominal = ?, last_income = ?, last_update = now(), income_update_at = now()',[params.nominal, params.nominal], (err, rows)=>{
-                // connection.release()
-                if(!err){
+                    // getTotalCash()
+                    updateListPetty(params)
+                    res.send('Cash has be updated')
+                    res.end()
                     return resolve()
                 } else {
                     console.log(err)
@@ -174,23 +202,6 @@ app.post('/add', async (req, res)=>{
             })
         })
     }
-
-    const getIdTotalCash = await getTotalCash()
-
-    // add new data to list history in table list_petty_case
-    pool.getConnection((err, connection)=>{
-        if (err) throw err
-
-        // status documentation
-        // income / expend
-        let data = {...params, total_id: getIdTotalCash}
-        connection.query('INSERT INTO list_petty_case SET ?', data, (err, rows)=>{
-            if (err) throw err
-
-            res.send('Cash has be updated')
-            res.end()
-        })
-    })
 
 })
 
@@ -221,7 +232,7 @@ app.put('/update/:id', async (req, res)=>{
         let sql = `UPDATE list_petty_case SET title = ?, description = ?, nominal = ?, status = ? WHERE list_petty_case . id = ?`
         
         connection.query(sql, [title, description, nominal, status, id], (err, rows)=>{
-            connection.release()
+            // connection.release()
             if (err) throw err
         })
     })
@@ -230,7 +241,7 @@ app.put('/update/:id', async (req, res)=>{
     pool.getConnection((err, connection)=>{
         if (err) throw err
 
-        let params = {...req.body, nominal: parseInt(req.body.nominal), total_id: parseInt(req.body.id_total)}
+        let params = {...req.body, nominal: parseInt(req.body.nominal), total_id: req.body.id_total}
 
         // for expend total cash
         if (params.status == 'expend' && params.total_id !== undefined){
