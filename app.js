@@ -50,7 +50,7 @@ app.get('/list-cash', (req, res)=>{
         const limit = parseInt(req.query.limit)
         const starIndex = (page -1 ) * limit
         const endIndex = page * limit
-        connection.query('SELECT * from list_petty_case', (err, rows)=>{
+        connection.query('SELECT * from list_petty_case ORDER BY id DESC', (err, rows)=>{
             connection.release()
 
             if(!err){
@@ -218,64 +218,58 @@ const getNominal = (params) => {
 }
 
 app.put('/update/:id', async (req, res)=>{
-
     let oldNominal = await getNominal(req)
 
-    // update in history list_petty_cash
-    pool.getConnection((err, connection)=>{
-        if (err) throw err
-    
-        let {title, description, nominal, status} = req.body
-        let id = parseInt(req.params.id)
-        nominal = parseInt(nominal)
+    let {title, description, nominal, status} = req.body
+    let id = parseInt(req.params.id)
+    nominal = parseInt(nominal)
 
-        let sql = `UPDATE list_petty_case SET title = ?, description = ?, nominal = ?, status = ? WHERE list_petty_case . id = ?`
-        
-        connection.query(sql, [title, description, nominal, status, id], (err, rows)=>{
-            // connection.release()
-            if (err) throw err
-        })
+    let sql = `UPDATE list_petty_case SET title = ?, description = ?, nominal = ?, status = ? WHERE list_petty_case . id = ?`
+    pool.query(sql, [title, description, nominal, status, id], (err, rows)=>{
+        if (err) throw err
+
+        console.log('history update');
+
     })
+    // })
 
     // update total cash
-    pool.getConnection((err, connection)=>{
-        if (err) throw err
+    let params = {...req.body, nominal: parseInt(req.body.nominal), total_id: req.body.total_id}
 
-        let params = {...req.body, nominal: parseInt(req.body.nominal), total_id: req.body.id_total}
+    // for expend total cash
+    if (params.status == 'expend' && params.total_id !== undefined){
+        let newNominal =  params.nominal - oldNominal
 
-        // for expend total cash
-        if (params.status == 'expend' && params.total_id !== undefined){
-            let newNominal =  params.nominal - oldNominal
+        let sql = `UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now(), expend_update_at = now() WHERE id = ?`
+        pool.query(sql, [newNominal, params.nominal, params.total_id], (err, rows)=>{
+            // connection.release()
+            if(!err){
+                console.log('expend update');
+                res.send('Cash has be updated')
+                res.end()
+            } else {
+                console.log(err)
+            }
+        })
 
-            let sql = `UPDATE total_cash SET nominal = nominal - ?, last_expend = ?, last_update = now(), expend_update_at = now() WHERE id = ?`
-            connection.query(sql, [newNominal, params.nominal, params.total_id], (err, rows)=>{
-                connection.release()
-                if(!err){
-                    res.send('Cash has be updated')
-                    res.end()
-                } else {
-                    console.log(err)
-                }
-            })
+    // for income total cash
+    } else if (params.status === 'income' && params.total_id !== undefined){
+        let newNominal = oldNominal - params.nominal
 
-        // for income total cash
-        } else if (params.status === 'income' && params.total_id !== undefined){
-            let newNominal = oldNominal - params.nominal
-
-            let sql = `UPDATE total_cash SET nominal = nominal - ?, last_income = ?, last_update = now(), income_update_at = now() WHERE id = ?`
-            connection.query(sql, [newNominal, params.nominal, params.total_id], (err, rows)=>{
-                connection.release()
-                if(!err){
-                    res.send('Cash has be updated')
-                    res.end()
-                } else {
-                    console.log(err)
-                }
-            })
-        } 
-    })
+        let sql = `UPDATE total_cash SET nominal = nominal - ?, last_income = ?, last_update = now(), income_update_at = now() WHERE id = ?`
+        pool.query(sql, [newNominal, params.nominal, params.total_id], (err, rows)=>{
+            // connection.release()
+            if(!err){
+                console.log('income update');
+                res.send('Cash has be updated')
+                res.end()
+            } else {
+                console.log(err)
+            }
+        })
+    } 
 })
- 
+
 
 // UPDATE / PATCH
 app.patch('/update/:id', (req, res)=>{
@@ -283,9 +277,7 @@ app.patch('/update/:id', (req, res)=>{
         if (err) throw err
         
         let id = req.params.id
-        // status documentation
-        // 0 = inactive, 1 = active, 2 = draf, 3 = complate, 4 = uncompleted
-
+        // status income & expend
         let sql = `UPDATE list_petty_case SET ? WHERE list_petty_case . id = ?`
 
         connection.query(sql, [req.body, id], (err, rows) => {
