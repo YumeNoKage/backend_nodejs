@@ -32,10 +32,9 @@ app.get('/total-cash', (req, res)=>{
             connection.release()
 
             if(!err){
-                // res.writeHead(200, {'content-type':"application/javascript"})
-                res.send(rows[0])
+                res.status(200).send(rows[0]).end()
             } else {
-                console.log(err)
+                res.status(400).send(data).end()
             }
         })
     })
@@ -69,9 +68,9 @@ app.get('/list-cash', (req, res)=>{
                     }
                 }
                 
-                res.send(data)
+                res.status(200).send(data).end()
             } else {
-                console.log(err)
+                res.status(400).send(err).end()
             }
         })
     })
@@ -86,9 +85,9 @@ app.get('/:id', (req, res)=>{
             connection.release()
 
             if(!err){
-                res.send(rows)
+                res.status(200).send(rows).end()
             } else {
-                console.log(err)
+                res.status(400).send(err).end()
             }
         })
     })
@@ -105,10 +104,9 @@ app.delete('/:id', (req, res)=>{
             connection.release()
 
             if(!err){
-                res.send('List has be deleted')
-                res.end()
+                res.status(200).send('List has be deleted').end()
             } else {
-                console.log(err)
+                res.status(400).send(err).end()
             }
         })
     })
@@ -154,12 +152,9 @@ app.post('/add',(req, res)=>{
                 // connection.release()
                 if(!err){
                     getTotalCash()
-                    updateListPetty(params)
-                    res.send('Cash has be updated')
-                    res.end()
+                    // updateListPetty(params)
                     return resolve()
                 } else {
-                    console.log(err)
                     return reject()
                 }
             })
@@ -174,11 +169,11 @@ app.post('/add',(req, res)=>{
                 if(!err){
                     // getTotalCash()
                     updateListPetty(params)
-                    res.send('Cash has be updated')
-                    res.end()
+
+                    res.status(200).send('Cash has be updated').end()
                     return resolve()
                 } else {
-                    console.log(err)
+                    res.status(400).send(err).end()
                     return reject()
                 }
             })
@@ -192,11 +187,10 @@ app.post('/add',(req, res)=>{
                 if(!err){
                     // getTotalCash()
                     updateListPetty(params)
-                    res.send('Cash has be updated')
-                    res.end()
+                    res.status(200).send('Cash has be updated').end()
                     return resolve()
                 } else {
-                    console.log(err)
+                    res.status(400).send(err).end()
                     return reject()
                 }
             })
@@ -244,11 +238,10 @@ app.put('/update/:id', async (req, res)=>{
         pool.query(sql, [newNominal, params.nominal, params.total_id], (err, rows)=>{
             // connection.release()
             if(!err){
-                console.log('expend update');
-                res.send('Cash has be updated')
-                res.end()
+                // console.log('expend update');
+                res.status(200).send('Cash has be updated').end()
             } else {
-                console.log(err)
+                res.status(400).send(err).end()
             }
         })
 
@@ -260,11 +253,10 @@ app.put('/update/:id', async (req, res)=>{
         pool.query(sql, [newNominal, params.nominal, params.total_id], (err, rows)=>{
             // connection.release()
             if(!err){
-                console.log('income update');
-                res.send('Cash has be updated')
-                res.end()
+                // console.log('income update');
+                res.status(200).send('Cash has be updated').end()
             } else {
-                console.log(err)
+                res.status(400).send(err).end()
             }
         })
     } 
@@ -284,11 +276,9 @@ app.patch('/update/:id', (req, res)=>{
             connection.release()
 
             if(!err){
-                res.send('Item has be updated with patch')
-                res.end()
+                res.writeHead(200).send('Item has be updated with patch').end()
             } else {
-                console.log(err)
-                res.end()
+                res.status(400).send(err).end()
             }
         })
     })
